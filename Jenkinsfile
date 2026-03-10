@@ -3,7 +3,7 @@
 // Architecture :
 //   PC Hôte        → Jenkins (Docker) + SonarQube (Docker) + Ansible
 //   192.168.43.133 → Harbor (harbor.local, HTTPS)
-//   192.168.43.109 → Kubernetes (Kubeadm)
+//   192.168.43.129 → Kubernetes (Kubeadm)
 // =============================================================================
 
 pipeline {
@@ -66,7 +66,7 @@ pipeline {
   Branch      : ${GIT_BRANCH}
   Commit      : ${GIT_COMMIT}
   Date        : \$(date '+%Y-%m-%d %H:%M:%S')
-  Lancé par   : ${BUILD_USER_ID ?: 'automatique'}
+  Lancé par   : \${BUILD_USER_ID:-automatique}
 =============================================================
 EOF
                         echo "[$(date '+%H:%M:%S')] [INIT] Pipeline démarré" >> ${LOG_FILE}
