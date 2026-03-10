@@ -1,0 +1,106 @@
+---
+# =============================================================================
+# Playbook : Déploiement Prometheus + Grafana sur Kubernetes (192.168.43.109)
+# Accès après déploiement :
+#   Prometheus : http://192.168.43.109:30090
+#   Grafana    : http://192.168.43.109:32000  (admin/admin)
+# =============================================================================
+
+- name: "📊 Deploy Prometheus + Grafana → Kubernetes"
+  hosts: kubernetes
+  become: false
+  gather_facts: false
+
+  vars:
+    monitoring_ns: "{{ namespace | default('monitoring') }}"
+    app_name:      "{{ app_name | default('java-app') }}"
+    app_ns:        "production"
+    manifests_dst: "/tmp/k8s-monitoring"
+
+  tasks:
+
+    # ── Créer le répertoire de travail ────────────────────────────────────────
+    - name: "Créer le répertoire monitoring"
+      file:
+        path: "{{ manifests_dst }}"
+        state: directory
+        mode: '0755'
+
+    # ── Copier les manifests monitoring ───────────────────────────────────────
+    - name: "Copier les manifests monitoring"
+      copy:
+        src: "{{ playbook_dir }}/../../kubernetes/monitoring/"
+        dest: "{{ manifests_dst }}/"
+
+    # ── Déployer Prometheus ───────────────────────────────────────────────────
+    - name: "📦 Déployer Prometheus ConfigMap"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/prometheus/configmap.yml
+        -n {{ monitoring_ns }}
+
+    - name: "📦 Déployer Prometheus RBAC"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/prometheus/rbac.yml
+        -n {{ monitoring_ns }}
+
+    - name: "📦 Déployer Prometheus Deployment"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/prometheus/deployment.yml
+        -n {{ monitoring_ns }}
+
+    - name: "📦 Déployer Prometheus Service (NodePort 30090)"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/prometheus/service.yml
+        -n {{ monitoring_ns }}
+
+    - name: "⏳ Attendre Prometheus"
+      command: >
+        kubectl rollout status deployment/prometheus
+        -n {{ monitoring_ns }} --timeout=180s
+
+    # ── Déployer Grafana ──────────────────────────────────────────────────────
+    - name: "📦 Déployer Grafana ConfigMap (datasources + dashboards)"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/grafana/configmap.yml
+        -n {{ monitoring_ns }}
+
+    - name: "📦 Déployer Grafana PVC"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/grafana/pvc.yml
+        -n {{ monitoring_ns }}
+
+    - name: "📦 Déployer Grafana Deployment"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/grafana/deployment.yml
+        -n {{ monitoring_ns }}
+
+    - name: "📦 Déployer Grafana Service (NodePort 32000)"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/grafana/service.yml
+        -n {{ monitoring_ns }}
+
+    - name: "⏳ Attendre Grafana"
+      command: >
+        kubectl rollout status deployment/grafana
+        -n {{ monitoring_ns }} --timeout=180s
+
+    # ── Vérifier les services de monitoring ───────────────────────────────────
+    - name: "📋 Services monitoring"
+      command: kubectl get svc -n {{ monitoring_ns }}
+      register: monitoring_svcs
+      changed_when: false
+
+    - name: "Services monitoring :"
+      debug: msg="{{ monitoring_svcs.stdout_lines }}"
+
+    # ── Nettoyage ─────────────────────────────────────────────────────────────
+    - name: "🧹 Nettoyage"
+      file:
+        path: "{{ manifests_dst }}"
+        state: absent
+
+    - name: "✅ Monitoring déployé !"
+      debug:
+        msg:
+          - "Prometheus : http://192.168.43.109:30090"
+          - "Grafana    : http://192.168.43.109:32000  (admin / admin)"

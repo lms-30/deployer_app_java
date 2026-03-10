@@ -1,0 +1,119 @@
+---
+# =============================================================================
+# Playbook : Préparer Kubernetes (192.168.43.109)
+# - Créer le namespace production
+# - Créer le secret Harbor (imagePullSecret)
+# - Créer les secrets DB
+# =============================================================================
+
+- name: "⚙️ Setup Kubernetes — Namespaces & Secrets"
+  hosts: kubernetes
+  become: true
+  gather_facts: true
+
+  vars:
+    namespace: "{{ namespace | default('production') }}"
+    harbor_registry: "harbor.local"
+    harbor_user: "{{ harbor_robot_user | default('robot$jenkins-robot') }}"
+    harbor_password: "{{ harbor_robot_password | default('lmscodeadmin') }}"
+    db_user: "appuser"
+    db_password: "AppDB@2024"
+
+  tasks:
+
+    # ── Vérifier que kubectl est disponible ───────────────────────────────────
+    - name: "Vérifier kubectl"
+      command: kubectl version --client --short
+      register: kubectl_check
+      changed_when: false
+      failed_when: kubectl_check.rc != 0
+
+    - name: "Afficher version kubectl"
+      debug:
+        msg: "kubectl : {{ kubectl_check.stdout }}"
+
+    # ── Créer les namespaces ──────────────────────────────────────────────────
+    - name: "Créer le namespace {{ namespace }}"
+      command: kubectl create namespace {{ namespace }}
+      register: ns_prod
+      failed_when:
+        - ns_prod.rc != 0
+        - "'already exists' not in ns_prod.stderr"
+      changed_when: ns_prod.rc == 0
+
+    - name: "Créer le namespace monitoring"
+      command: kubectl create namespace monitoring
+      register: ns_monitoring
+      failed_when:
+        - ns_monitoring.rc != 0
+        - "'already exists' not in ns_monitoring.stderr"
+      changed_when: ns_monitoring.rc == 0
+
+    # ── Ajouter harbor.local dans /etc/hosts de la VM K8s ────────────────────
+    - name: "Ajouter harbor.local dans /etc/hosts"
+      lineinfile:
+        path: /etc/hosts
+        line: "192.168.43.133  harbor.local"
+        state: present
+        backup: yes
+
+    # ── Copier le certificat CA Harbor sur la VM K8s ──────────────────────────
+    - name: "Créer le répertoire certs Docker pour harbor.local"
+      file:
+        path: /etc/docker/certs.d/harbor.local
+        state: directory
+        mode: '0755'
+
+    - name: "Copier le certificat CA Harbor"
+      copy:
+        src: "{{ playbook_dir }}/../harbor-ca.crt"
+        dest: /etc/docker/certs.d/harbor.local/ca.crt
+        mode: '0644'
+      notify: Restart containerd
+
+    # ── Copier le CA dans le système pour containerd (Kubeadm) ───────────────
+    - name: "Installer le CA Harbor dans le système"
+      copy:
+        src: "{{ playbook_dir }}/../harbor-ca.crt"
+        dest: /usr/local/share/ca-certificates/harbor-local-ca.crt
+        mode: '0644'
+      notify: Update CA certificates
+
+    # ── Secret Harbor pour pull d'images ─────────────────────────────────────
+    - name: "Créer le secret Harbor (imagePullSecret) dans {{ namespace }}"
+      shell: |
+        kubectl create secret docker-registry harbor-registry-secret \
+          --docker-server={{ harbor_registry }} \
+          --docker-username={{ harbor_user }} \
+          --docker-password={{ harbor_password }} \
+          --namespace={{ namespace }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+      no_log: true
+
+    # ── Secret credentials base de données ───────────────────────────────────
+    - name: "Créer le secret DB credentials dans {{ namespace }}"
+      shell: |
+        kubectl create secret generic db-credentials \
+          --from-literal=username={{ db_user }} \
+          --from-literal=password={{ db_password }} \
+          --namespace={{ namespace }} \
+          --dry-run=client -o yaml | kubectl apply -f -
+      no_log: true
+
+    - name: "✅ Résumé setup Kubernetes"
+      debug:
+        msg:
+          - "Namespace '{{ namespace }}' : prêt"
+          - "Namespace 'monitoring'     : prêt"
+          - "Secret Harbor              : créé"
+          - "Secret DB                  : créé"
+          - "harbor.local               : résolu → 192.168.43.133"
+
+  handlers:
+    - name: Restart containerd
+      service:
+        name: containerd
+        state: restarted
+
+    - name: Update CA certificates
+      command: update-ca-certificates

@@ -1,0 +1,74 @@
+---
+# =============================================================================
+# Playbook : Vérification du déploiement
+# =============================================================================
+- name: "✅ Verify Kubernetes Deployment"
+  hosts: kubernetes
+  become: false
+  gather_facts: false
+
+  vars:
+    namespace: "{{ namespace | default('production') }}"
+    app_name:  "{{ app_name | default('java-app') }}"
+
+  tasks:
+
+    - name: "Vérifier le statut du déploiement"
+      command: >
+        kubectl rollout status deployment/{{ app_name }}
+        -n {{ namespace }} --timeout=120s
+
+    - name: "Lister les pods"
+      command: kubectl get pods -n {{ namespace }} -l app={{ app_name }} -o wide
+      register: pods
+      changed_when: false
+
+    - name: "Pods actifs :"
+      debug: msg="{{ pods.stdout_lines }}"
+
+    - name: "Lister les services"
+      command: kubectl get svc -n {{ namespace }}
+      register: svcs
+      changed_when: false
+
+    - name: "Services :"
+      debug: msg="{{ svcs.stdout_lines }}"
+
+    - name: "Vérifier que les pods sont Running"
+      shell: |
+        NOT_RUNNING=$(kubectl get pods -n {{ namespace }} -l app={{ app_name }} \
+          --field-selector=status.phase!=Running \
+          --no-headers 2>/dev/null | wc -l)
+        echo "Pods non-Running : ${NOT_RUNNING}"
+        [ "${NOT_RUNNING}" -eq "0" ]
+      register: running_check
+      failed_when: running_check.rc != 0
+
+---
+# =============================================================================
+# Playbook : Rollback automatique
+# =============================================================================
+- name: "🔄 Rollback Kubernetes Deployment"
+  hosts: kubernetes
+  become: false
+  gather_facts: false
+
+  vars:
+    namespace: "{{ namespace | default('production') }}"
+    app_name:  "{{ app_name | default('java-app') }}"
+
+  tasks:
+
+    - name: "🔄 Rollback vers la version précédente"
+      command: >
+        kubectl rollout undo deployment/{{ app_name }}
+        -n {{ namespace }}
+
+    - name: "Attendre la stabilisation après rollback"
+      command: >
+        kubectl rollout status deployment/{{ app_name }}
+        -n {{ namespace }} --timeout=180s
+
+    - name: "✅ Rollback terminé"
+      debug:
+        msg: "Le rollback de {{ app_name }} a été effectué avec succès"

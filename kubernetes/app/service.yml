@@ -1,0 +1,58 @@
+---
+# ── Service ───────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: java-app-service
+  namespace: production
+  labels:
+    app: java-app
+spec:
+  type: NodePort
+  selector:
+    app: java-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      nodePort: 30080       # Accès : http://192.168.43.109:30080
+
+---
+# ── ConfigMap ─────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: java-app-config
+  namespace: production
+data:
+  DB_URL: "jdbc:postgresql://postgres-service:5432/appdb"
+  APP_LOG_LEVEL: "INFO"
+  SPRING_PROFILES_ACTIVE: "production"
+
+---
+# ── HPA — Horizontal Pod Autoscaler ──────────────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: java-app-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: java-app
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80

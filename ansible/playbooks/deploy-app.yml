@@ -1,0 +1,126 @@
+---
+# =============================================================================
+# Playbook : Déploiement Application Java + PostgreSQL sur Kubernetes
+# Target   : 192.168.43.109 (user: lms)
+# =============================================================================
+
+- name: "🚀 Deploy Java App + PostgreSQL → Kubernetes"
+  hosts: kubernetes
+  become: false
+  gather_facts: false
+
+  vars:
+    namespace:    "{{ namespace | default('production') }}"
+    app_image:    "{{ app_image }}"
+    app_name:     "java-app"
+    app_version:  "{{ app_version }}"
+    build_number: "{{ build_number }}"
+    manifests_src: "{{ playbook_dir }}/../../kubernetes"
+    manifests_dst: "/tmp/k8s-deploy-{{ build_number }}"
+
+  tasks:
+
+    # ── Créer répertoire de travail ───────────────────────────────────────────
+    - name: "Créer le répertoire de manifests"
+      file:
+        path: "{{ manifests_dst }}"
+        state: directory
+        mode: '0755'
+
+    # ── Copier tous les manifests ─────────────────────────────────────────────
+    - name: "Copier les manifests Kubernetes"
+      copy:
+        src: "{{ manifests_src }}/"
+        dest: "{{ manifests_dst }}/"
+        mode: '0644'
+
+    # ── Mettre à jour le tag de l'image dans le deployment ───────────────────
+    - name: "Mettre à jour l'image dans le manifest deployment"
+      replace:
+        path: "{{ manifests_dst }}/app/deployment.yml"
+        regexp: 'harbor\.local/myproject/java-app:[^\s"]+'
+        replace: "{{ app_image }}"
+
+    # ═══════════ DÉPLOIEMENT BASE DE DONNÉES ═══════════════════════════════
+
+    - name: "📦 Appliquer le PVC PostgreSQL"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/database/postgres-pvc.yml
+        -n {{ namespace }}
+
+    - name: "📦 Déployer PostgreSQL"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/database/postgres-deployment.yml
+        -n {{ namespace }}
+
+    - name: "📦 Créer le service PostgreSQL"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/database/postgres-service.yml
+        -n {{ namespace }}
+
+    - name: "⏳ Attendre que PostgreSQL soit prêt (max 3 min)"
+      command: >
+        kubectl rollout status deployment/postgres
+        -n {{ namespace }}
+        --timeout=180s
+      register: pg_status
+      failed_when: pg_status.rc != 0
+
+    - name: "✅ PostgreSQL : {{ pg_status.stdout }}"
+      debug:
+        msg: "{{ pg_status.stdout }}"
+
+    # ═══════════ DÉPLOIEMENT APPLICATION JAVA ══════════════════════════════
+
+    - name: "📦 Appliquer la ConfigMap application"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/app/configmap.yml
+        -n {{ namespace }}
+
+    - name: "📦 Déployer l'application Java"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/app/deployment.yml
+        -n {{ namespace }}
+
+    - name: "📦 Créer le service application"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/app/service.yml
+        -n {{ namespace }}
+
+    - name: "📦 Appliquer le HPA"
+      command: >
+        kubectl apply -f {{ manifests_dst }}/app/hpa.yml
+        -n {{ namespace }}
+
+    - name: "⏳ Attendre le rollout application (max 5 min)"
+      command: >
+        kubectl rollout status deployment/{{ app_name }}
+        -n {{ namespace }}
+        --timeout=300s
+      register: app_status
+      failed_when: app_status.rc != 0
+
+    # ── Annoter le déploiement ────────────────────────────────────────────────
+    - name: "🏷️  Annoter le déploiement"
+      command: >
+        kubectl annotate deployment/{{ app_name }}
+        kubernetes.io/change-cause="Build #{{ build_number }} | Image: {{ app_image }}"
+        -n {{ namespace }}
+        --overwrite
+
+    # ── Afficher l'état des pods ──────────────────────────────────────────────
+    - name: "📋 État des pods après déploiement"
+      command: >
+        kubectl get pods -n {{ namespace }} -o wide
+      register: pods_status
+      changed_when: false
+
+    - name: "Pods en cours :"
+      debug:
+        msg: "{{ pods_status.stdout_lines }}"
+
+    # ── Nettoyage ─────────────────────────────────────────────────────────────
+    - name: "🧹 Nettoyage manifests temporaires"
+      file:
+        path: "{{ manifests_dst }}"
+        state: absent
