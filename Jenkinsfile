@@ -29,6 +29,7 @@ pipeline {
 
         ANSIBLE_DIR       = "${WORKSPACE}/ansible"
         ANSIBLE_HOST_KEY_CHECKING = "False"
+        NVD_API_KEY = credentials('nvd-api-key')
     }
 
     options {
@@ -204,6 +205,7 @@ ENDOFFILE
                         mvn org.owasp:dependency-check-maven:check \
                             -DfailBuildOnCVSS=7 \
                             -Dformat=ALL \
+                            -DnvdApiKey=${NVD_API_KEY} \
                             --no-transfer-progress 2>&1 | tee -a ${LOG_FILE} || true
                     """
                     sh "echo '[\$(date +%H:%M:%S)] [OWASP] OK - Scan termine' >> ${LOG_FILE}"
