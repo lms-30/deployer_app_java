@@ -143,15 +143,8 @@ ENDOFFILE
             }
             post {
                 always {
-                    junit 'target/surefire-reports/*.xml'
-                    publishHTML([
-                        allowMissing: true,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
-                        reportDir: 'target/site/jacoco',
-                        reportFiles: 'index.html',
-                        reportName: 'Code Coverage'
-                    ])
+                    junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
+                    archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
                 }
             }
         }
