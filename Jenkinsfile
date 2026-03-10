@@ -54,26 +54,29 @@ pipeline {
         // STAGE 0 — INITIALISATION LOGS
         // ═════════════════════════════════════════════════════════════════════
         stage('📝 Init Logs') {
-            steps {
-                script {
-                    sh """
-                        mkdir -p ${LOGS_DIR}
-                        cat > ${LOG_FILE} <<EOF
+    steps {
+        script {
+            def buildUser = currentBuild.getBuildCauses('hudson.model.Cause$UserIdCause')
+                            .collect { it.userId ?: 'automatique' }
+                            .join(', ') ?: 'automatique'
+            sh """
+                mkdir -p ${LOGS_DIR}
+                cat > ${LOG_FILE} <<EOF
 =============================================================
   JENKINS PIPELINE LOG
   Application : ${APP_NAME}
   Build N°    : ${BUILD_NUMBER}
   Branch      : ${GIT_BRANCH}
-  Commit      : ${GIT_COMMIT}
+  Commit      : \$(git rev-parse HEAD)
   Date        : \$(date '+%Y-%m-%d %H:%M:%S')
-  Lancé par   : \${BUILD_USER_ID:-automatique}
+  Lance par   : ${buildUser}
 =============================================================
 EOF
-                        echo "[$(date '+%H:%M:%S')] [INIT] Pipeline démarré" >> ${LOG_FILE}
-                    """
-                }
-            }
+                echo "[\$(date '+%H:%M:%S')] [INIT] Pipeline demarre" >> ${LOG_FILE}
+            """
         }
+    }
+}
 
         // ═════════════════════════════════════════════════════════════════════
         // STAGE 1 — CHECKOUT
