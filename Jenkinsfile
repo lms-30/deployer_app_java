@@ -91,7 +91,7 @@ ENDOFFILE
                 script {
                     sh "echo '[\$(date +%H:%M:%S)] [GITLEAKS] Demarrage scan secrets...' >> ${LOG_FILE}"
                     sh """
-                        mkdir -p reports
+                        mkdir -p ${WORKSPACE}/reports
 
                         docker run --rm \
                             -v ${WORKSPACE}:/path \
