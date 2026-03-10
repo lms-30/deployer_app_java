@@ -99,13 +99,13 @@ ENDOFFILE
                             detect \
                             --source="/path" \
                             --report-format=json \
-                            --report-path="/path/reports/gitleaks-report.json" \
+                            --report-path="/path/gitleaks-report.json" \
                             --exit-code=1 \
                             --verbose 2>&1 | tee -a ${LOG_FILE} || true
 
                         LEAKS=0
-                        if [ -f reports/gitleaks-report.json ]; then
-                            LEAKS=\$(python3 -c "import json; d=json.load(open('reports/gitleaks-report.json')); print(len(d))" 2>/dev/null || echo "0")
+                        if [ -f gitleaks-report.json ]; then
+                            LEAKS=\$(python3 -c "import json; d=json.load(open('gitleaks-report.json')); print(len(d))" 2>/dev/null || echo "0")
                         fi
 
                         echo "[\$(date +%H:%M:%S)] [GITLEAKS] Secrets detectes: \${LEAKS}" >> ${LOG_FILE}
@@ -120,7 +120,7 @@ ENDOFFILE
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'reports/gitleaks-report.json', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
                 }
             }
         }
@@ -437,7 +437,7 @@ ENDOFFILE
                     </table>
                     <p><a href="${BUILD_URL}">Voir le build Jenkins</a></p>""",
                 mimeType: 'text/html',
-                to: 'devops-team@example.com'
+                to: 'lahinirikomarasylvain30@gmail.com'
             )
         }
 
@@ -475,7 +475,7 @@ ENDOFFILE
                     <p><b>Branch :</b> ${GIT_BRANCH}</p>
                     <p><a href="${BUILD_URL}console">Voir les logs</a></p>""",
                 mimeType: 'text/html',
-                to: 'devops-team@example.com'
+                to: 'lahinirikomarasylvain30@gmail.com'
             )
         }
 
