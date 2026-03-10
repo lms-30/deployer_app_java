@@ -99,13 +99,13 @@ ENDOFFILE
                             detect \
                             --source="/path" \
                             --report-format=json \
-                            --report-path="/path/gitleaks-report.json" \
+                            --report-path="/path/reports/gitleaks-report.json" \
                             --exit-code=1 \
                             --verbose 2>&1 | tee -a ${LOG_FILE} || true
 
                         LEAKS=0
-                        if [ -f gitleaks-report.json ]; then
-                            LEAKS=\$(python3 -c "import json; d=json.load(open('gitleaks-report.json')); print(len(d))" 2>/dev/null || echo "0")
+                        if [ -f reports/gitleaks-report.json ]; then
+                            LEAKS=\$(python3 -c "import json; d=json.load(open('reports/gitleaks-report.json')); print(len(d))" 2>/dev/null || echo "0")
                         fi
 
                         echo "[\$(date +%H:%M:%S)] [GITLEAKS] Secrets detectes: \${LEAKS}" >> ${LOG_FILE}
@@ -120,58 +120,13 @@ ENDOFFILE
             }
             post {
                 always {
-                    archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
+                    archiveArtifacts artifacts: 'reports/gitleaks-report.json', allowEmptyArchive: true
                 }
             }
         }
 
         // ═════════════════════════════════════════════════════════════════════
-        // STAGE 3 — SONARQUBE
-        // ═════════════════════════════════════════════════════════════════════
-        stage('SonarQube — Code Analysis') {
-            steps {
-                script {
-                    sh "echo '[\$(date +%H:%M:%S)] [SONAR] Demarrage analyse SonarQube...' >> ${LOG_FILE}"
-                }
-                withSonarQubeEnv('SonarQube') {
-                    sh """
-                        mvn sonar:sonar \
-                            -Dsonar.projectKey=${APP_NAME} \
-                            -Dsonar.projectName="${APP_NAME}" \
-                            -Dsonar.host.url=${SONAR_HOST} \
-                            -Dsonar.login=${SONAR_TOKEN} \
-                            -Dsonar.java.binaries=target/classes \
-                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                            -Dsonar.exclusions="**/test/**" \
-                            --no-transfer-progress 2>&1 | tee -a ${LOG_FILE}
-                    """
-                }
-                sh "echo '[\$(date +%H:%M:%S)] [SONAR] OK - Analyse terminee' >> ${LOG_FILE}"
-            }
-        }
-
-        // ═════════════════════════════════════════════════════════════════════
-        // STAGE 4 — QUALITY GATE
-        // ═════════════════════════════════════════════════════════════════════
-        stage('Quality Gate') {
-            steps {
-                script {
-                    sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] Verification...' >> ${LOG_FILE}"
-                    timeout(time: 5, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] Statut: ${qg.status}' >> ${LOG_FILE}"
-                        if (qg.status != 'OK') {
-                            sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] ECHEC - Qualite insuffisante' >> ${LOG_FILE}"
-                            error "Quality Gate echoue : ${qg.status}"
-                        }
-                    }
-                    sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] OK' >> ${LOG_FILE}"
-                }
-            }
-        }
-
-        // ═════════════════════════════════════════════════════════════════════
-        // STAGE 5 — MAVEN BUILD
+        // STAGE 3 — MAVEN BUILD
         // ═════════════════════════════════════════════════════════════════════
         stage('Maven Build') {
             steps {
@@ -197,6 +152,50 @@ ENDOFFILE
                         reportFiles: 'index.html',
                         reportName: 'Code Coverage'
                     ])
+                }
+            }
+        }
+ 
+        // ═════════════════════════════════════════════════════════════════════
+        // STAGE 4 — SONARQUBE
+        // ═════════════════════════════════════════════════════════════════════
+        stage('SonarQube — Code Analysis') {
+            steps {
+                script {
+                    sh "echo '[\$(date +%H:%M:%S)] [SONAR] Demarrage analyse SonarQube...' >> ${LOG_FILE}"
+                }
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        mvn sonar:sonar \
+                            -Dsonar.projectKey=${APP_NAME} \
+                            -Dsonar.projectName="${APP_NAME}" \
+                            -Dsonar.host.url=${SONAR_HOST} \
+                            -Dsonar.login=${SONAR_TOKEN} \
+                            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                            -Dsonar.exclusions="**/test/**" \
+                            --no-transfer-progress 2>&1 | tee -a ${LOG_FILE}
+                    """
+                }
+                sh "echo '[\$(date +%H:%M:%S)] [SONAR] OK - Analyse terminee' >> ${LOG_FILE}"
+            }
+        }
+
+        // ═════════════════════════════════════════════════════════════════════
+        // STAGE 5 — QUALITY GATE
+        // ═════════════════════════════════════════════════════════════════════
+        stage('Quality Gate') {
+            steps {
+                script {
+                    sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] Verification...' >> ${LOG_FILE}"
+                    timeout(time: 5, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] Statut: ${qg.status}' >> ${LOG_FILE}"
+                        if (qg.status != 'OK') {
+                            sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] ECHEC - Qualite insuffisante' >> ${LOG_FILE}"
+                            error "Quality Gate echoue : ${qg.status}"
+                        }
+                    }
+                    sh "echo '[\$(date +%H:%M:%S)] [QUALITY-GATE] OK' >> ${LOG_FILE}"
                 }
             }
         }
