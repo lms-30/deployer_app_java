@@ -59,7 +59,7 @@ pipeline {
   Application : ${APP_NAME}
   Build N     : ${BUILD_NUMBER}
   Branch      : ${GIT_BRANCH}
-  Date        : \$(date '+%Y-%m-%d %H:%M:%S')
+  Date        : "\$(date '+%Y-%m-%d %H:%M:%S')" 
   Lance par   : ${buildUser}
 =============================================================
 ENDOFFILE
@@ -213,7 +213,6 @@ ENDOFFILE
             }
             post {
                 always {
-                    dependencyCheckPublisher pattern: 'target/dependency-check-report.xml'
                     archiveArtifacts artifacts: 'target/dependency-check-report.*', allowEmptyArchive: true
                 }
             }
