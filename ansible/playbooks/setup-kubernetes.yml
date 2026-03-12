@@ -23,7 +23,7 @@
 
     # ── Vérifier que kubectl est disponible ───────────────────────────────────
     - name: "Vérifier kubectl"
-      command: kubectl version --client --short
+      command: kubectl version --client
       register: kubectl_check
       changed_when: false
       failed_when: kubectl_check.rc != 0
