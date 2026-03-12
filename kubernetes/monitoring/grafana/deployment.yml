@@ -9,7 +9,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: java-app
-  namespace: production
+  namespace: monitoring
   labels:
     app: java-app
     tier: backend
