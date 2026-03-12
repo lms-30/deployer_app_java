@@ -206,6 +206,7 @@ ENDOFFILE
                             -DfailBuildOnCVSS=7 \
                             -Dformat=ALL \
                             -DnvdApiKey=${NVD_API_KEY} \
+                             -DsuppressionFile=owasp-suppressions.xml \
                             --no-transfer-progress 2>&1 | tee -a ${LOG_FILE} || true
                     """
                     sh "echo '[\$(date +%H:%M:%S)] [OWASP] OK - Scan termine' >> ${LOG_FILE}"

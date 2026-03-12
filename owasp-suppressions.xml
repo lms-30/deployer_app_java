@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+
+    <!--
+        Tomcat CVEs — supprimées en attente de mise à jour Spring Boot
+        Analysées le 2026-03-12, aucun patch disponible dans Spring Boot 3.3.x
+        Revue prévue : 2026-04-12
+    -->
+    <suppress>
+        <notes>Tomcat CVEs — Spring Boot 3.3.11 embarque Tomcat 10.1.x, patches non disponibles</notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-49124</cve>
+    </suppress>
+    <suppress>
+        <notes>Tomcat CVEs — Spring Boot 3.3.11</notes>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-49125</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-52520</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-53506</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-55754</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-48988</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-48989</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-55752</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-46701</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2025-66614</cve>
+    </suppress>
+    <suppress>
+        <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat-embed-core@.*$</packageUrl>
+        <cve>CVE-2026-24734</cve>
+    </suppress>
+
+</suppressions>
