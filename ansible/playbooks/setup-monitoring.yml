@@ -10,6 +10,8 @@
   hosts: kubernetes
   become: false
   gather_facts: false
+  environment:
+    KUBECONFIG: /home/lms/.kube/config
 
   vars:
     monitoring_ns: "{{ namespace | default('monitoring') }}"

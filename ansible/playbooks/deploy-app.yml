@@ -8,6 +8,8 @@
   hosts: kubernetes
   become: false
   gather_facts: false
+  environment:
+    KUBECONFIG: /home/lms/.kube/config
 
   vars:
     namespace:    "{{ namespace | default('production') }}"
